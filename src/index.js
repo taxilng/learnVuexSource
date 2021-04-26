@@ -1,7 +1,6 @@
 import { Store, install } from './store'
 import { mapState, mapMutations, mapGetters, mapActions, createNamespacedHelpers } from './helpers'
 import createLogger from './plugins/logger'
-console.log('ming2');
 export default {
   Store,
   install,

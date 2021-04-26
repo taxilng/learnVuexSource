@@ -10,6 +10,10 @@ export class Store {
     // Auto install if it is not done yet and `window` has `Vue`.
     // To allow users to avoid auto-installation in some cases,
     // this code should be placed here. See #731
+    /*
+      在浏览器环境下，如果插件还未安装（!Vue即判断是否未安装），则它会自动安装。
+      它允许用户在某些情况下避免自动安装。
+    */
     if (!Vue && typeof window !== 'undefined' && window.Vue) {
       install(window.Vue)
     }
@@ -21,10 +25,11 @@ export class Store {
     }
 
     const {
+      // 获取 options.plugins 属性，如果没有，则设置成 []， vuex 插件方法，监听事件执行一些方法
       plugins = [],
+      // 严格模式，默认为false, 保证所有修改state必须走mutation不然抛出错误信息
       strict = false
     } = options
-
     // store internal state
     this._committing = false
     this._actions = Object.create(null)
@@ -38,6 +43,7 @@ export class Store {
     this._makeLocalGettersCache = Object.create(null)
 
     // bind commit and dispatch to self
+    //将构造函数的方法的this指向自身，而不是它的实例.这样指向不会错乱
     const store = this
     const { dispatch, commit } = this
     this.dispatch = function boundDispatch (type, payload) {
@@ -89,6 +95,7 @@ export class Store {
     } = unifyObjectStyle(_type, _payload, _options)
 
     const mutation = { type, payload }
+    console.log(33, this);
     const entry = this._mutations[type]
     if (!entry) {
       if (__DEV__) {
@@ -537,6 +544,7 @@ function unifyObjectStyle (type, payload, options) {
 }
 
 export function install (_Vue) {
+  // 其实Vue.use()已经有缓存了，这边不缓存我觉得问题也不大 避免重复安装
   if (Vue && _Vue === Vue) {
     if (__DEV__) {
       console.error(
@@ -546,5 +554,7 @@ export function install (_Vue) {
     return
   }
   Vue = _Vue
+  // 将vuexInit混淆进Vue的beforeCreate(Vue2.0)
+  //详见 ./mixin.js文件
   applyMixin(Vue)
 }
