@@ -46,6 +46,7 @@ const actions = {
   },
 
   addProductToCart ({ state, commit }, product) {
+      console.log('不玩');
     commit('setCheckoutStatus', null)
     if (product.inventory > 0) {
       const cartItem = state.items.find(item => item.id === product.id)
@@ -84,7 +85,7 @@ const mutations = {
 }
 
 export default {
-  namespaced: true,
+//   namespaced: true,
   state,
   getters,
   actions,

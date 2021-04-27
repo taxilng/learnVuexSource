@@ -36,6 +36,7 @@ export class Store {
     this._actionSubscribers = []
     this._mutations = Object.create(null)
     this._wrappedGetters = Object.create(null)
+    
     this._modules = new ModuleCollection(options)
     this._modulesNamespaceMap = Object.create(null)
     this._subscribers = []
@@ -47,6 +48,7 @@ export class Store {
     const store = this
     const { dispatch, commit } = this
     this.dispatch = function boundDispatch (type, payload) {
+        // console.log('熊');
       return dispatch.call(store, type, payload)
     }
     this.commit = function boundCommit (type, payload, options) {
@@ -55,12 +57,15 @@ export class Store {
 
     // strict mode
     this.strict = strict
-
+    // console.log('this._modules.root', this._modules);
     const state = this._modules.root.state
 
     // init root module.
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
+     /*初始化根module，这也同时递归注册了所有子modle，收集所有module的getter到_wrappedGetters中去，this._modules.root代表根module才独有保存的Module对象*/
+    //  console.log('shu', this._modules.root);
+    // 这是初始化 根模块，只有 根模块才有 root属性
     installModule(this, state, [], this._modules.root)
 
     // initialize the store vm, which is responsible for the reactivity
@@ -95,7 +100,7 @@ export class Store {
     } = unifyObjectStyle(_type, _payload, _options)
 
     const mutation = { type, payload }
-    console.log(33, this);
+    // console.log(33, this);
     const entry = this._mutations[type]
     if (!entry) {
       if (__DEV__) {
@@ -336,14 +341,17 @@ function resetStoreVM (store, state, hot) {
 }
 
 function installModule (store, rootState, path, module, hot) {
-  const isRoot = !path.length
-  const namespace = store._modules.getNamespace(path)
+  const isRoot = !path.length // 当第三个参数的length为0时，就标识根module
+  const namespace = store._modules.getNamespace(path) // 根节点的话，就是 空字符串
 
   // register in namespace map
+  //判断是否有 命名空间
+//   console.log('xian', module, namespace === '');
   if (module.namespaced) {
     if (store._modulesNamespaceMap[namespace] && __DEV__) {
       console.error(`[vuex] duplicate namespace ${namespace} for the namespaced module ${path.join('/')}`)
     }
+    // 放到命名空间的变量中
     store._modulesNamespaceMap[namespace] = module
   }
 
@@ -362,9 +370,12 @@ function installModule (store, rootState, path, module, hot) {
       Vue.set(parentState, moduleName, module.state)
     })
   }
-
+  
+  // 如果没有 命名空间 那么就把 dispatch 和 commit 注册在根节点
   const local = module.context = makeLocalContext(store, namespace, path)
+//   console.log('dai', local);
 
+  // 遍历
   module.forEachMutation((mutation, key) => {
     const namespacedType = namespace + key
     registerMutation(store, namespacedType, mutation, local)
@@ -389,6 +400,8 @@ function installModule (store, rootState, path, module, hot) {
 /**
  * make localized dispatch, commit, getters and state
  * if there is no namespace, just use root ones
+ * *进行本地化的分派、提交、getter和state
+ *如果没有名称空间，就使用根名称空间
  */
 function makeLocalContext (store, namespace, path) {
   const noNamespace = namespace === ''
@@ -467,10 +480,22 @@ function makeLocalGetters (store, namespace) {
 
   return store._makeLocalGettersCache[namespace]
 }
-
+/**
+ * 
+ * @param {*} store 构造函数自身this
+ * @param {*} type  handler就是我们定义的mutation的属性名
+ * @param {*} handler handler就是我们定义的mutation的函数
+ * @param {*} local 
+ * 这个函数就是把 mutation方法，注册到 stroe._mutations里面了
+ */
 function registerMutation (store, type, handler, local) {
   const entry = store._mutations[type] || (store._mutations[type] = [])
-  entry.push(function wrappedMutationHandler (payload) {
+  setTimeout(() => {
+    //   console.log('entry', store._mutations, type, store._mutations[type], entry);
+    }, 1000);
+    entry.push(function wrappedMutationHandler (payload) {
+        // console.log('local', local, local.state);
+    //先把this指向给自身，local是当前节点了， payload传入的参数
     handler.call(store, local.state, payload)
   })
 }
@@ -486,21 +511,28 @@ function registerAction (store, type, handler, local) {
       rootGetters: store.getters,
       rootState: store.state
     }, payload)
+    // console.log('返回值', res);
+    // 假如不是promise，将会转换成promise
     if (!isPromise(res)) {
       res = Promise.resolve(res)
     }
+    //假如 安装了vue.js devtools 那么会有window全局属性__VUE_DEVTOOLS_GLOBAL_HOOK__
+    // 并且 store.devtoolHook = window.__VUE_DEVTOOLS_GLOBAL_HOOK__
     if (store._devtoolHook) {
+      // 返回的其实还是res 并且会在catch中触发报错提示
       return res.catch(err => {
         store._devtoolHook.emit('vuex:error', err)
         throw err
       })
     } else {
+      // 生产环境 未安装devtools
       return res
     }
   })
 }
 
 function registerGetter (store, type, rawGetter, local) {
+    // 如果存在的getter属性，就给予报错提示
   if (store._wrappedGetters[type]) {
     if (__DEV__) {
       console.error(`[vuex] duplicate getter key: ${type}`)

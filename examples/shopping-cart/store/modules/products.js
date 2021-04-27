@@ -14,6 +14,9 @@ const actions = {
     shop.getProducts(products => {
       commit('setProducts', products)
     })
+  },
+  addProductToCart(){
+      console.log('就是玩儿');
   }
 }
 
@@ -30,7 +33,7 @@ const mutations = {
 }
 
 export default {
-  namespaced: true,
+//   namespaced: true,
   state,
   getters,
   actions,

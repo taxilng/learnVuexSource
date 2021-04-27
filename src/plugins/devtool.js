@@ -4,6 +4,7 @@ const target = typeof window !== 'undefined'
     ? global
     : {}
 const devtoolHook = target.__VUE_DEVTOOLS_GLOBAL_HOOK__
+console.log('devtoolHook', devtoolHook);
 
 export default function devtoolPlugin (store) {
   if (!devtoolHook) return

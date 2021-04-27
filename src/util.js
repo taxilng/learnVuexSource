@@ -48,6 +48,7 @@ export function deepCopy (obj, cache = []) {
 
 /**
  * forEach for object
+ * 遍历对象，回调函数来执行，参数分别是value key；
  */
 export function forEachValue (obj, fn) {
   Object.keys(obj).forEach(key => fn(obj[key], key))
@@ -57,6 +58,7 @@ export function isObject (obj) {
   return obj !== null && typeof obj === 'object'
 }
 
+// 判断是否为promise
 export function isPromise (val) {
   return val && typeof val.then === 'function'
 }

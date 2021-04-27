@@ -13,7 +13,7 @@ export default class Module {
     // Store the origin module's state
     this.state = (typeof rawState === 'function' ? rawState() : rawState) || {}
   }
-
+  // 在“类”的内部可以使用get和set关键字，对某个属性设置存值函数和取值函数，拦截该属性的存取行为。
   get namespaced () {
     return !!this._rawModule.namespaced
   }
@@ -63,6 +63,9 @@ export default class Module {
     }
   }
 
+  // fn为回调函数， this._rawModule,为new Module(rawModule) 第一个参数
+  // 然后看 module-collection.js 文件如何调用new Module
+  // 所以this._rawModule 本质就是 new Store(options) 传入的opitons
   forEachMutation (fn) {
     if (this._rawModule.mutations) {
       forEachValue(this._rawModule.mutations, fn)

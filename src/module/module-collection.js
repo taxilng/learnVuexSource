@@ -1,6 +1,6 @@
 import Module from './module'
 import { assert, forEachValue } from '../util'
-
+// 它的实例只有一个 root属性，根模块
 export default class ModuleCollection {
   constructor (rawRootModule) {
     // register root module (Vuex.Store options)
@@ -29,10 +29,12 @@ export default class ModuleCollection {
     if (__DEV__) {
       assertRawModule(path, rawModule)
     }
-
+    // 那就是在 register 传入的第二个参数，而register在 constructor时调用
+    // 那就看new ModuleCollection(rawRootModule) 传入的第一个参数
     const newModule = new Module(rawModule, runtime)
     if (path.length === 0) {
-      this.root = newModule
+      this.root = newModule 
+    //   console.log('newModule', newModule);
     } else {
       const parent = this.get(path.slice(0, -1))
       parent.addChild(path[path.length - 1], newModule)
