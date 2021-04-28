@@ -6,7 +6,11 @@ const state = () => ({
 })
 
 // getters
-const getters = {}
+const getters = {
+    getterdemo(){
+        return 1
+    }
+}
 
 // actions
 const actions = {

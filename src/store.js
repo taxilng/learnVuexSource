@@ -31,6 +31,7 @@ export class Store {
       strict = false
     } = options
     // store internal state
+    // 直接修改state的提示，默认开启
     this._committing = false
     this._actions = Object.create(null)
     this._actionSubscribers = []
@@ -63,36 +64,41 @@ export class Store {
     // init root module.
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
-     /*初始化根module，这也同时递归注册了所有子modle，收集所有module的getter到_wrappedGetters中去，this._modules.root代表根module才独有保存的Module对象*/
+     /*初始化根module，这也同时递归注册了所有子module，收集所有module的getter到_wrappedGetters中去，this._modules.root代表根module才独有保存的Module对象*/
     //  console.log('shu', this._modules.root);
     // 这是初始化 根模块，只有 根模块才有 root属性
     installModule(this, state, [], this._modules.root)
 
     // initialize the store vm, which is responsible for the reactivity
     // (also registers _wrappedGetters as computed properties)
+    //初始化负责反应性的store 实例
+    //（还将_wrappedgeters注册为计算属性）
     resetStoreVM(this, state)
 
-    // apply plugins
+    // apply plugins 处理下插件的逻辑, 直接执行
     plugins.forEach(plugin => plugin(this))
 
+    // 假如开启开发模式，利用vue.js devtool插件来提示
     const useDevtools = options.devtools !== undefined ? options.devtools : Vue.config.devtools
     if (useDevtools) {
       devtoolPlugin(this)
     }
   }
-
+  // 重写 state的获取方法，从vue实例中的_data获取
   get state () {
     return this._vm._data.$$state
   }
 
+  // 直接修改state，开发环境给予报错提示
   set state (v) {
     if (__DEV__) {
       assert(false, `use store.replaceState() to explicit replace store state.`)
     }
   }
-
+  // commit方法
   commit (_type, _payload, _options) {
     // check object-style commit
+    // 主要是针对 对象风格的提交方式 来统一参数
     const {
       type,
       payload,
@@ -100,7 +106,7 @@ export class Store {
     } = unifyObjectStyle(_type, _payload, _options)
 
     const mutation = { type, payload }
-    // console.log(33, this);
+    // 初始化时，会把所有的mutations放到 vm._mutations 中
     const entry = this._mutations[type]
     if (!entry) {
       if (__DEV__) {
@@ -108,12 +114,14 @@ export class Store {
       }
       return
     }
+    // 先关闭修改提示，再调用
     this._withCommit(() => {
+      //遍历执行
       entry.forEach(function commitIterator (handler) {
         handler(payload)
       })
     })
-
+    //浅拷贝，暂时不知道作用 触发 plugin插件的subscribe回调
     this._subscribers
       .slice() // shallow copy to prevent iterator invalidation if subscriber synchronously calls unsubscribe
       .forEach(sub => sub(mutation, this.state))
@@ -128,9 +136,10 @@ export class Store {
       )
     }
   }
-
+  // this.$store.dispatch方法
   dispatch (_type, _payload) {
     // check object-style dispatch
+    // 统一参数格式
     const {
       type,
       payload
@@ -146,6 +155,17 @@ export class Store {
     }
 
     try {
+      //  也是plugins的 subscribeAction 回调触发, 支持function 或者 object，衔触发before，然后等action执行完毕，再触发after
+      /**
+        store.subscribeAction({
+            before: (action, state) => {
+                console.log(`before action ${action.type}`)
+            },
+            after: (action, state) => {
+                console.log(`after action ${action.type}`)
+            }
+        })
+       */
       this._actionSubscribers
         .slice() // shallow copy to prevent iterator invalidation if subscriber synchronously calls unsubscribe
         .filter(sub => sub.before)
@@ -156,14 +176,15 @@ export class Store {
         console.error(e)
       }
     }
-
+    // 如果action有多个函数，那么就需要Promise.all 全部完成后才返回数据
     const result = entry.length > 1
       ? Promise.all(entry.map(handler => handler(payload)))
       : entry[0](payload)
-
+    // 只有在after或者error执行完毕后，才返回action结果
     return new Promise((resolve, reject) => {
       result.then(res => {
         try {
+          // 成功的调用afert
           this._actionSubscribers
             .filter(sub => sub.after)
             .forEach(sub => sub.after(action, this.state))
@@ -176,6 +197,7 @@ export class Store {
         resolve(res)
       }, error => {
         try {
+            // 失败的调用error
           this._actionSubscribers
             .filter(sub => sub.error)
             .forEach(sub => sub.error(action, this.state, error))
@@ -190,28 +212,31 @@ export class Store {
     })
   }
 
+  // 订阅 store 的 mutation
   subscribe (fn, options) {
     return genericSubscribe(fn, this._subscribers, options)
   }
-
+   // 订阅 store 的 action ，假如参数是函数，则放到before中，看文档API https://vuex.vuejs.org/zh/api/#subscribeaction
   subscribeAction (fn, options) {
     const subs = typeof fn === 'function' ? { before: fn } : fn
     return genericSubscribe(subs, this._actionSubscribers, options)
   }
 
+  // 用vue的$watch来实现getter的监听
+  // 响应式地侦听 fn 的返回值，当值改变时调用回调函数。fn 接收 store 的 state 作为第一个参数，其 getter 作为第二个参数。最后接收一个可选的对象参数表示 Vue 的 vm.$watch 方法的参数。要停止侦听，调用此方法返回的函数即可停止侦听
   watch (getter, cb, options) {
     if (__DEV__) {
       assert(typeof getter === 'function', `store.watch only accepts a function.`)
     }
     return this._watcherVM.$watch(() => getter(this.state, this.getters), cb, options)
   }
-
+  // 全局替换state
   replaceState (state) {
     this._withCommit(() => {
       this._vm._data.$$state = state
     })
   }
-
+  //注册一个动态模块
   registerModule (path, rawModule, options = {}) {
     if (typeof path === 'string') path = [path]
 
@@ -265,11 +290,13 @@ export class Store {
 }
 
 function genericSubscribe (fn, subs, options) {
+ // 将订阅的方法插入到this._subscribers 或者 this._actionSubscribers 中，默认plugins.prepend = true；每次都是插入在头部；也就是说后引入的插件，先执行；
   if (subs.indexOf(fn) < 0) {
     options && options.prepend
       ? subs.unshift(fn)
       : subs.push(fn)
   }
+  // 返回了一个函数， 假如调用这个函数，就会取消订阅
   return () => {
     const i = subs.indexOf(fn)
     if (i > -1) {
@@ -291,7 +318,9 @@ function resetStore (store, hot) {
 }
 
 function resetStoreVM (store, state, hot) {
-  const oldVm = store._vm
+    // 首次进入时是不存在，store._vm值的，将会在下面赋值
+    const oldVm = store._vm
+    // console.log('store', store);
 
   // bind store public getters
   store.getters = {}
@@ -300,10 +329,17 @@ function resetStoreVM (store, state, hot) {
   const wrappedGetters = store._wrappedGetters
   const computed = {}
   forEachValue(wrappedGetters, (fn, key) => {
+    // fn 为 getters的函数
     // use computed to leverage its lazy-caching mechanism
     // direct inline function use will lead to closure preserving oldVm.
     // using partial to return function with only arguments preserved in closure environment.
+    //使用computed来利用其延迟缓存机制
+    //直接使用内联函数将导致保留闭包的oldVm。
+    //在闭包环境中使用只保留参数的partial返回函数。
+    // console.log('fn', fn);
+    // 相当于 computed[key] = () => fn(store)
     computed[key] = partial(fn, store)
+    // 改写store.getters[key] 的 get 为 store._vm[key] 
     Object.defineProperty(store.getters, key, {
       get: () => store._vm[key],
       enumerable: true // for local getters
@@ -313,8 +349,13 @@ function resetStoreVM (store, state, hot) {
   // use a Vue instance to store the state tree
   // suppress warnings just in case the user has added
   // some funky global mixins
+  //使用Vue实例存储状态树 仅在用户添加 一些时髦的全球混合
   const silent = Vue.config.silent
+//   console.log('silent', silent);
+  // 将Vue的全局报错提示先暂时关闭，然后恢复
   Vue.config.silent = true
+  // 给_vm赋值，是vue的实例化，将state存入
+  // 利用vue的computed来缓存getters
   store._vm = new Vue({
     data: {
       $$state: state
@@ -324,18 +365,21 @@ function resetStoreVM (store, state, hot) {
   Vue.config.silent = silent
 
   // enable strict mode for new vm
+  // 开启严格模式
   if (store.strict) {
     enableStrictMode(store)
   }
-
+  // getter已经用computed缓存后的热更新
   if (oldVm) {
     if (hot) {
       // dispatch changes in all subscribed watchers
       // to force getter re-evaluation for hot reloading.
+      // 关闭直接修改state的提示，并且把旧的state清空，getter也随之清空
       store._withCommit(() => {
         oldVm._data.$$state = null
       })
     }
+    // 销毁旧的实例
     Vue.nextTick(() => oldVm.$destroy())
   }
 }
@@ -391,8 +435,18 @@ function installModule (store, rootState, path, module, hot) {
     const namespacedType = namespace + key
     registerGetter(store, namespacedType, getter, local)
   })
-
+ /**
+  * 遍历 modules 里面的,例如
+   export default new Vuex.Store({
+    modules: {
+        products,
+        cart,
+        },
+    })
+  *  */ 
   module.forEachChild((child, key) => {
+    // console.log('forEachChild', child, key);
+    // 那么key就是 products；path.concat(key) 也是 products；
     installModule(store, rootState, path.concat(key), child, hot)
   })
 }
@@ -501,6 +555,7 @@ function registerMutation (store, type, handler, local) {
 }
 
 function registerAction (store, type, handler, local) {
+ // 当不同的modules没有命名空间，action取了相同的名字，就会push到数组中依次执行。
   const entry = store._actions[type] || (store._actions[type] = [])
   entry.push(function wrappedActionHandler (payload) {
     let res = handler.call(store, {
@@ -548,8 +603,11 @@ function registerGetter (store, type, rawGetter, local) {
     )
   }
 }
-
+/*
+ 严格模式 需要阅读vue源码关于$watch方法
+*/
 function enableStrictMode (store) {
+    // console.log('store', store._vm.$data === store._vm._data);
   store._vm.$watch(function () { return this._data.$$state }, () => {
     if (__DEV__) {
       assert(store._committing, `do not mutate vuex store state outside mutation handlers.`)
@@ -561,13 +619,21 @@ function getNestedState (state, path) {
   return path.reduce((state, key) => state[key], state)
 }
 
+// 统一对象样式
 function unifyObjectStyle (type, payload, options) {
+    /**
+      store.commit({
+        type: 'increment',
+        amount: 10
+      })
+      针对这种写法来进行逻辑判断
+     */
   if (isObject(type) && type.type) {
     options = payload
     payload = type
     type = type.type
   }
-
+  // 校验 type必须为字符串
   if (__DEV__) {
     assert(typeof type === 'string', `expects string as the type, but found ${typeof type}.`)
   }

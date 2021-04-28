@@ -48,6 +48,7 @@ export default class Module {
   }
 
   forEachChild (fn) {
+    //   console.log('this._children', this._children);
     forEachValue(this._children, fn)
   }
 

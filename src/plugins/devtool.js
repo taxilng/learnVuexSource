@@ -3,8 +3,9 @@ const target = typeof window !== 'undefined'
   : typeof global !== 'undefined'
     ? global
     : {}
+// 判断是否有 vue.js devtool chrome插件
 const devtoolHook = target.__VUE_DEVTOOLS_GLOBAL_HOOK__
-console.log('devtoolHook', devtoolHook);
+// console.log('devtoolHook', devtoolHook);
 
 export default function devtoolPlugin (store) {
   if (!devtoolHook) return
