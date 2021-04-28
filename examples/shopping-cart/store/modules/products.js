@@ -20,7 +20,7 @@ const actions = {
     })
   },
   addProductToCart(){
-      console.log('就是玩儿');
+    //   console.log('就是玩儿');
   }
 }
 

@@ -238,13 +238,14 @@ export class Store {
   }
   //注册一个动态模块
   registerModule (path, rawModule, options = {}) {
+    // path就是模块名，是字符串就转成数组
     if (typeof path === 'string') path = [path]
 
     if (__DEV__) {
       assert(Array.isArray(path), `module path must be a string or an Array.`)
       assert(path.length > 0, 'cannot register the root module by using registerModule.')
     }
-
+    // 模块注册
     this._modules.register(path, rawModule)
     installModule(this, this.state, path, this._modules.get(path), options.preserveState)
     // reset store to update getters...
