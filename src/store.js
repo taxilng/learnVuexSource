@@ -94,7 +94,7 @@ export class Store {
       assert(false, `use store.replaceState() to explicit replace store state.`)
     }
   }
-  // commit方法
+  // commit发布方法
   commit (_type, _payload, _options) {
     // check object-style commit
     // 主要是针对 对象风格的提交方式 来统一参数
@@ -135,7 +135,7 @@ export class Store {
       )
     }
   }
-  // this.$store.dispatch方法
+  // this.$store.dispatch发布方法
   dispatch (_type, _payload) {
     // check object-style dispatch
     // 统一参数格式
@@ -251,7 +251,7 @@ export class Store {
     // reset store to update getters...
     resetStoreVM(this, this.state)
   }
-
+  //卸载模块
   unregisterModule (path) {
     if (typeof path === 'string') path = [path]
 
@@ -261,12 +261,14 @@ export class Store {
 
     this._modules.unregister(path)
     this._withCommit(() => {
+      // 获取父级的state
       const parentState = getNestedState(this.state, path.slice(0, -1))
+      // 用vue的删除方法，来删除 自己模块的state 这样vue才能监控到，getter computed才会触发
       Vue.delete(parentState, path[path.length - 1])
     })
     resetStore(this)
   }
-
+  // 判断这个模块是否存在
   hasModule (path) {
     if (typeof path === 'string') path = [path]
 
@@ -313,12 +315,13 @@ function resetStore (store, hot) {
   store._wrappedGetters = Object.create(null)
   store._modulesNamespaceMap = Object.create(null)
   const state = store.state
-  // init all modules
+  // init all modules 重新注册根模块，递归子模块
   installModule(store, state, [], store._modules.root, true)
   // reset vm
   resetStoreVM(store, state, hot)
 }
 
+// 主要是设置state，getter 设置到vue 监控中
 function resetStoreVM (store, state, hot) {
     // 首次进入时是不存在，store._vm值的，将会在下面赋值
     const oldVm = store._vm
@@ -377,6 +380,7 @@ function resetStoreVM (store, state, hot) {
       // dispatch changes in all subscribed watchers
       // to force getter re-evaluation for hot reloading.
       // 关闭直接修改state的提示，并且把旧的state清空，getter也随之清空
+      // destroy不会清空 state的值； 
       store._withCommit(() => {
         oldVm._data.$$state = null
       })
@@ -507,6 +511,9 @@ function makeLocalContext (store, namespace, path) {
 
   // getters and state object must be gotten lazily
   // because they will be changed by vm update
+  // getter和state对象必须是懒惰的。 因为vm更新将更改它们。
+  // 这边只涉及到getter，state的读取.
+  // 这个地方写的很好，getters是属性，你不好动态获取的，但是用defineProperties就可以做到
   Object.defineProperties(local, {
     getters: {
       get: noNamespace
@@ -521,20 +528,30 @@ function makeLocalContext (store, namespace, path) {
   return local
 }
 
+// 假如我们调用一个 local.getters.getName
+// 就是 makeLocalGetters(store, namespace).getName
+// 就是store._makeLocalGettersCache[namespace].getName
+// 然后是 gettersProxy.getName
+// 最后是 store.getters['cart/getName']
+// 本地的短名称，获取最终的长名称字段；
 function makeLocalGetters (store, namespace) {
+  // 这边把 getters进行了缓存
   if (!store._makeLocalGettersCache[namespace]) {
     const gettersProxy = {}
     const splitPos = namespace.length
     Object.keys(store.getters).forEach(type => {
       // skip if the target getter is not match this namespace
+      // 如果目标getter与此命名空间不匹配，则跳过
       if (type.slice(0, splitPos) !== namespace) return
 
       // extract local getter type
+      // 这就是本地的 getter属性名
       const localType = type.slice(splitPos)
 
       // Add a port to the getters proxy.
       // Define as getter property because
       // we do not want to evaluate the getters in this time.
+      // 采用代理的形式，这样才能做到每次拿到最新的值；
       Object.defineProperty(gettersProxy, localType, {
         get: () => store.getters[type],
         enumerable: true
@@ -572,7 +589,7 @@ function registerAction (store, type, handler, local) {
     let res = handler.call(store, {
       dispatch: local.dispatch,
       commit: local.commit,
-      getters: local.getters,
+      getters: local.getters, 
       state: local.state,
       rootGetters: store.getters,
       rootState: store.state

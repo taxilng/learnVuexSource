@@ -22,6 +22,7 @@ export default class Module {
     this._children[key] = module
   }
 
+  // 删除子模块
   removeChild (key) {
     delete this._children[key]
   }

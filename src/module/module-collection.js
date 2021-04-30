@@ -41,7 +41,7 @@ export default class ModuleCollection {
     //根节点在new ModuleCollection 的path是[],才满足。 动态注册是必须要填path的
     if (path.length === 0) {
       this.root = newModule 
-      console.log('newModule', newModule);
+    //   console.log('newModule', newModule);
     } else {
       //假如是一级组件的话，那么parent = this.root
       const parent = this.get(path.slice(0, -1))
@@ -65,6 +65,7 @@ export default class ModuleCollection {
             }
         }
     */
+   // 递归执行子模块
     if (rawModule.modules) {
       //此时key就是myPage;rawChildModule = {state: { zs:1 }};
       forEachValue(rawModule.modules, (rawChildModule, key) => {
@@ -73,10 +74,13 @@ export default class ModuleCollection {
       })
     }
   }
-
+  // 卸载
   unregister (path) {
+      // 拿父级路径
     const parent = this.get(path.slice(0, -1))
+    // 拿自己的路径
     const key = path[path.length - 1]
+    // 拿自己的moudule
     const child = parent.getChild(key)
 
     if (!child) {
@@ -88,7 +92,7 @@ export default class ModuleCollection {
       }
       return
     }
-
+    // 注册模块时，默认值都是true,那么是可以卸载的。 只有根模块的参数是false，是不可卸载的。当然你可以注册时自己设置为false，就不可卸载了
     if (!child.runtime) {
       return
     }
@@ -113,7 +117,7 @@ function update (path, targetModule, newModule) {
     assertRawModule(path, newModule)
   }
 
-  // update target module
+  // update target module 这边调用的是 ./module.js 里面的update方法
   targetModule.update(newModule)
 
   // update nested modules
