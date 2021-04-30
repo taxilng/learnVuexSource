@@ -14,10 +14,13 @@ export default class ModuleCollection {
     }, this.root)
   }
 
+  // 根据是否设置命名空间，进行path拼接
   getNamespace (path) {
-    let module = this.root
+    let module = this.root // 根模块
     return path.reduce((namespace, key) => {
+      // 获取子模块的module
       module = module.getChild(key)
+      // 假如子模块有命名空间，就是 'cart/' 如果没有就是 ''
       return namespace + (module.namespaced ? key + '/' : '')
     }, '')
   }

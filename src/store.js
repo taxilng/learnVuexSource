@@ -49,7 +49,6 @@ export class Store {
     const store = this
     const { dispatch, commit } = this
     this.dispatch = function boundDispatch (type, payload) {
-        // console.log('熊');
       return dispatch.call(store, type, payload)
     }
     this.commit = function boundCommit (type, payload, options) {
@@ -247,6 +246,7 @@ export class Store {
     }
     // 模块注册
     this._modules.register(path, rawModule)
+    // path假如为 'cart' this._modules.get(path)就是获取 cart下自身的getter,mutations，action对象； preserveState:true，表示state不覆盖;
     installModule(this, this.state, path, this._modules.get(path), options.preserveState)
     // reset store to update getters...
     resetStoreVM(this, this.state)
@@ -282,6 +282,7 @@ export class Store {
     resetStore(this, true)
   }
 
+  //关闭报错提示，再调用函数，再开启报错提示
   _withCommit (fn) {
     const committing = this._committing
     this._committing = true
@@ -385,14 +386,16 @@ function resetStoreVM (store, state, hot) {
   }
 }
 
+// hot=true时，就是不覆盖以前的state
 function installModule (store, rootState, path, module, hot) {
-  const isRoot = !path.length // 当第三个参数的length为0时，就标识根module
-  const namespace = store._modules.getNamespace(path) // 根节点的话，就是 空字符串
+  const isRoot = !path.length // 当第三个参数的length为0时，就标识根module；
+  const namespace = store._modules.getNamespace(path) // 根节点的话，就是 空字符串''，假如有命名空间就是 'cart/'
 
   // register in namespace map
-  //判断是否有 命名空间
+  //判断是否有 命名空间，这一段就是命名空间的缓存，有重复就报错；
 //   console.log('xian', module, namespace === '');
   if (module.namespaced) {
+    // 命名空间如果已经存在就会报错
     if (store._modulesNamespaceMap[namespace] && __DEV__) {
       console.error(`[vuex] duplicate namespace ${namespace} for the namespaced module ${path.join('/')}`)
     }
@@ -400,32 +403,38 @@ function installModule (store, rootState, path, module, hot) {
     store._modulesNamespaceMap[namespace] = module
   }
 
-  // set state
+  // set state 不是根模块，并且可以替换state
   if (!isRoot && !hot) {
+    // 拿到父模块的state
     const parentState = getNestedState(rootState, path.slice(0, -1))
+    // 自己组件的名字
     const moduleName = path[path.length - 1]
     store._withCommit(() => {
       if (__DEV__) {
+        //开发环境中 当父模块已经存在同名的子模块，会警告
         if (moduleName in parentState) {
           console.warn(
             `[vuex] state field "${moduleName}" was overridden by a module with the same name at "${path.join('.')}"`
           )
         }
       }
+      //采用Vue.set方法，数据可以监控，这样getter就可以计算了
       Vue.set(parentState, moduleName, module.state)
     })
   }
   
-  // 如果没有 命名空间 那么就把 dispatch 和 commit 注册在根节点
+  // 如果没有 命名空间 那么就把 dispatch 和 commit 注册在根节点 
+  // 有命名空间那么他的触发方式就改成 type= "cart/addProductToCart"
+  // 子组件下调用aciton，只需要 type = 'addProductToCart' 就会拼接成 "cart/addProductToCart" 跟全局调用组件统一化
   const local = module.context = makeLocalContext(store, namespace, path)
 //   console.log('dai', local);
 
-  // 遍历
+  // 遍历 注册订阅 mutation
   module.forEachMutation((mutation, key) => {
     const namespacedType = namespace + key
     registerMutation(store, namespacedType, mutation, local)
   })
-
+  // 遍历 注册订阅 action
   module.forEachAction((action, key) => {
     const type = action.root ? key : namespace + key
     const handler = action.handler || action
@@ -444,6 +453,7 @@ function installModule (store, rootState, path, module, hot) {
         cart,
         },
     })
+    递归调用子模块
   *  */ 
   module.forEachChild((child, key) => {
     // console.log('forEachChild', child, key);
@@ -456,25 +466,25 @@ function installModule (store, rootState, path, module, hot) {
  * make localized dispatch, commit, getters and state
  * if there is no namespace, just use root ones
  * *进行本地化的分派、提交、getter和state
- *如果没有名称空间，就使用根名称空间
+ * 如果没有名称空间，就使用根名称空间，有命名空间就接上 "cart/addProductToCart"
  */
 function makeLocalContext (store, namespace, path) {
   const noNamespace = namespace === ''
 
   const local = {
     dispatch: noNamespace ? store.dispatch : (_type, _payload, _options) => {
-      const args = unifyObjectStyle(_type, _payload, _options)
+      const args = unifyObjectStyle(_type, _payload, _options) // 整理参数格式
       const { payload, options } = args
       let { type } = args
-
-      if (!options || !options.root) {
-        type = namespace + type
+      //没有option 或者 option.root不存在
+      if (!options || !options.root) { 
+        type = namespace + type // 例子 type = "cart/addProductToCart"
         if (__DEV__ && !store._actions[type]) {
           console.error(`[vuex] unknown local action type: ${args.type}, global type: ${type}`)
           return
         }
       }
-
+      // 就是type拼接了下然后继续调用 dispatch方法
       return store.dispatch(type, payload)
     },
 
@@ -616,6 +626,7 @@ function enableStrictMode (store) {
   }, { deep: true, sync: true })
 }
 
+// 嵌套获取当前 path下的state值
 function getNestedState (state, path) {
   return path.reduce((state, key) => state[key], state)
 }
