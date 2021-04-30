@@ -11,11 +11,14 @@
 
 <script>
 import { mapGetters, mapActions } from 'vuex'
-
+import xu from './demo.js'
 export default {
     computed: mapGetters([
         'evenOrOdd'
     ]),
+    mounted(){
+        console.log(xu);
+    },
     methods: {
         ...mapActions([
             'increment',

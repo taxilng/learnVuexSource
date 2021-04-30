@@ -34,11 +34,11 @@ export default function (Vue) {
   /**
    * Vuex init hook, injected into each instances init hooks list.
    * Vuex init钩子，注入到每个实例init hook列表中。
+   * Vue每个实例组件，就有了 this.$store属性了
+   * 为什么optionns有store实例呢
    */
 
   function vuexInit () {
-    //   console.log('chang', this);
-    //   console.log('bo', this.$options.store, this.$options.parent && this.$options.parent.$store);
     const options = this.$options
     // store injection
     if (options.store) {
