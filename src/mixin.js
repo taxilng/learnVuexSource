@@ -21,7 +21,7 @@ export default function (Vue) {
     // 这是一个常见的技巧，先保存原型方法为 _init 然后重写原型方法
     const _init = Vue.prototype._init
     Vue.prototype._init = function (options = {}) {
-     // 这边分行写容易无解，根据js运算符优先级，问号大于赋值
+     // 这边分行写容易误解，根据js运算符优先级，问号大于赋值
      // vueInit方法传入 option.init里面，或数组或函数，具体要看vue1.x的 _init方法怎么接受参数的
       options.init = options.init
         ? [vuexInit].concat(options.init)
@@ -39,6 +39,18 @@ export default function (Vue) {
    */
 
   function vuexInit () {
+    /**
+        new Vue({
+            i18n,
+            router,
+            store,
+            render: h => h(App)
+        }).$mount('#app')
+        这段代码中，可以看出store是作为参数传入new Vue() 初始化的参数中，
+        然后在vue源码中vm.$option = option 会接受这个参数，
+        所以 options.store 是存在的，并且格式大概率是对象。
+        另外组件的初始化的话，是要走 options.parent.$store的
+     */
     const options = this.$options
     // store injection
     if (options.store) {
